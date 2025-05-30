@@ -1,0 +1,16 @@
+{
+  "compilerOptions": {
+    "target": "es2020",  // or a more recent target like 'esnext'
+    "module": "commonjs",
+    "outDir": "./dist",
+    "strict": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true
+  },
+  "include": [
+    "./src/**/*.ts",
+  ]
+}

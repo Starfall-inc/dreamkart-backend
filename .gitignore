@@ -1,0 +1,9 @@
+.env 
+node_modules/
+dist/
+# Logs
+npm-debug.log*
+# Dependency directories
+jspm_packages/
+# Optional npm cache directory
+.npm
