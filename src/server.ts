@@ -1,8 +1,8 @@
 import express from 'express';
-import serverConfig from './src/config/server'; // Your server configuration
-import connectDB  from './src/config/db';     // Your database connection function
-import productRoutes from './src/routes/product.routes'; // Your lovely product routes
-import categoryRoutes from './src/routes/category.routes'; // Your fabulous category routes
+import serverConfig from './config/server'; // Your server configuration
+import connectDB  from './config/db';     // Your database connection function
+import productRoutes from './routes/product.routes'; // Your lovely product routes
+import categoryRoutes from './routes/category.routes'; // Your fabulous category routes
 
 const app = express(); // Initialize your Express application
 
