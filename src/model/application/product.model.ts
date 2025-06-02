@@ -55,3 +55,5 @@ const ProductSchema = new Schema<IProduct>({
 const Product = model<IProduct>('Product', ProductSchema);
 
 export default Product; // This is the more conventional way to export a single main item!
+export type { IProduct };
+export { ProductSchema }; // Exporting the schema for potential reuse

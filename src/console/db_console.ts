@@ -1,7 +1,7 @@
 import readline from 'readline'; // To read input from the console
 import connectDB from '../config/db'; // Our database connection function
-import ProductService from '../services/product.service'; // Our wonderful Product Service
-import CategoryService from '../services/category.service'; // We'll need a Category Service too!
+import ProductService from '../services/application/product.service'; // Our wonderful Product Service
+import CategoryService from '../services/application/category.service'; // We'll need a Category Service too!
 import serverConfig from '../config/server'; // Our server config for MongoDB URI
 import mongoose from 'mongoose'; // To access mongoose.connection.db.name
 
