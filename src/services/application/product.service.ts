@@ -1,182 +1,174 @@
-import mongoose from "mongoose"; // Important for multi-tenancy!
-import Product, { IProduct } from "../../model/application/product.model"; // Your base Product model
-import Category, { ICategory } from "../../model/application/category.model"; // Your base Category model
+import mongoose from "mongoose";
+import Product, { IProduct } from "../../model/application/product.model";
+import Category, { ICategory } from "../../model/application/category.model";
+import { CreateProductDto, UpdateProductDto } from "../../types/product.dto"; // Adjusted path for DTOs
 
-class ProductService {
+export class ProductService { // Changed to export class
+    private tenantId: string;
 
-    // Helper method to get the correct Product model for a given tenant
-    // This is the core multi-tenancy piece! 🔑
-    private getTenantProductModel(tenantDbName: string) {
-        // Use the existing mongoose connection (to your platform DB) to switch to the tenant's DB
-        const tenantDb = mongoose.connection.useDb(tenantDbName, { useCache: true });
-        // Return the Mongoose Model specific to this tenant's database
-        // We ensure the schema is applied to this specific database connection
-        // Mongoose automatically ensures the model is not re-registered if it already exists for this connection.
+    constructor(tenantId: string) {
+        if (!tenantId) {
+            throw new Error("Tenant ID is required for ProductService");
+        }
+        this.tenantId = tenantId;
+    }
+
+    private getTenantProductModel() { // Removed tenantDbName parameter
+        const tenantDb = mongoose.connection.useDb(this.tenantId, { useCache: true });
         return tenantDb.model<IProduct>('Product', Product.schema);
     }
 
-    // Helper method to get the correct Category model for a given tenant
-    private getTenantCategoryModel(tenantDbName: string) {
-        const tenantDb = mongoose.connection.useDb(tenantDbName, { useCache: true });
+    private getTenantCategoryModel() { // Removed tenantDbName parameter
+        const tenantDb = mongoose.connection.useDb(this.tenantId, { useCache: true });
         return tenantDb.model<ICategory>('Category', Category.schema);
     }
 
-
-    /**
-     * Get all products for a specific tenant
-     * @param tenantDbName - The name of the tenant's database
-     */
-    async getAllProducts(tenantDbName: string): Promise<IProduct[]> {
+    async getAllProducts(options: { page?: number, limit?: number, sort?: string } = {}): Promise<IProduct[]> { // Removed tenantDbName, added options
         try {
-            const TenantProduct = this.getTenantProductModel(tenantDbName);
-            // Populate the category, but use the Category model from the same tenant DB
-            const TenantCategory = this.getTenantCategoryModel(tenantDbName); 
+            const TenantProduct = this.getTenantProductModel();
+            const TenantCategory = this.getTenantCategoryModel();
 
-            const products = await TenantProduct.find({}).populate({
+            let query = TenantProduct.find({}).populate({
                 path: 'category',
-                model: TenantCategory // Crucially populate from the tenant's Category model
+                model: TenantCategory
             });
+
+            if (options.sort) {
+                query = query.sort(options.sort);
+            }
+            if (options.page && options.limit) {
+                const skip = (options.page - 1) * options.limit;
+                query = query.skip(skip).limit(options.limit);
+            }
+
+            const products = await query.exec();
             return products;
         } catch (error) {
-            console.error(`{ProductService -> getAllProducts} Error fetching products for tenant DB '${tenantDbName}':`, error);
+            console.error(`{ProductService -> getAllProducts} Error fetching products for tenant '${this.tenantId}':`, error);
             throw new Error('Failed to retrieve products.');
         }
     }
 
-    /**
-     * Get a product by SKU for a specific tenant
-     * @param tenantDbName - The name of the tenant's database
-     * @param sku - The SKU of the product
-     */
-    async getProductBySku(tenantDbName: string, sku: string): Promise<IProduct | null> { // Corrected func name
+    async getProductBySku(sku: string): Promise<IProduct | null> { // Removed tenantDbName
         try {
-            const TenantProduct = this.getTenantProductModel(tenantDbName);
-            const TenantCategory = this.getTenantCategoryModel(tenantDbName); 
-
+            const TenantProduct = this.getTenantProductModel();
+            const TenantCategory = this.getTenantCategoryModel();
             const product = await TenantProduct.findOne({ sku }).populate({
                 path: 'category',
                 model: TenantCategory
-            });
+            }).exec();
             return product;
         } catch (error) {
-            console.error(`{ProductService -> getProductBySku} Error retrieving product by SKU '${sku}' for tenant DB '${tenantDbName}':`, error);
-            throw new Error("Failed to retrieve product.");
+            console.error(`{ProductService -> getProductBySku} Error retrieving product by SKU '${sku}' for tenant '${this.tenantId}':`, error);
+            throw new Error('Failed to retrieve product by SKU.'); // Specific error message
         }
     }
 
-    /*
-     * get product by category for a specific tenant
-     * @param tenantDbName - The name of the tenant's database
-     * @param categoryId - The _id of the category
-     */
-    async getProductbyCategory(tenantDbName: string, categoryId: string): Promise<IProduct[]> {
+    async getProductbyCategory(categoryId: string): Promise<IProduct[]> { // Removed tenantDbName
         try {
-            const TenantProduct = this.getTenantProductModel(tenantDbName);
-            const TenantCategory = this.getTenantCategoryModel(tenantDbName); 
-
+            const TenantProduct = this.getTenantProductModel();
+            const TenantCategory = this.getTenantCategoryModel();
             const products = await TenantProduct.find({ category: categoryId }).populate({
                 path: 'category',
                 model: TenantCategory
-            });
+            }).exec();
             return products;
         } catch (error) {
-            console.error(`{ProductService -> getProductByCategory} Error retrieving products by category '${categoryId}' for tenant DB '${tenantDbName}':`, error);
-            throw new Error("Failed to retrieve products by category.");
+            console.error(`{ProductService -> getProductByCategory} Error retrieving products by category '${categoryId}' for tenant '${this.tenantId}':`, error);
+            throw new Error('Failed to retrieve products by category.');
         }
     }
 
-    /**
-     * Search products by query for a specific tenant
-     * @param tenantDbName - The name of the tenant's database
-     * @param query - The search query string
-     */
-    async searchProducts(tenantDbName: string, query: string): Promise<IProduct[]> {
+    async searchProducts(query: string): Promise<IProduct[]> { // Removed tenantDbName
         try {
-            const TenantProduct = this.getTenantProductModel(tenantDbName);
-            const TenantCategory = this.getTenantCategoryModel(tenantDbName); 
-
-            const products = await TenantProduct.find({
-                $or: [
-                    { name: { $regex: query, $options: 'i' } },
-                    { description: { $regex: query, $options: 'i' } },
-                    // Searching 'attributes' as a whole object might be less efficient for complex objects
-                    // Consider creating a specific text index if `attributes` contains long text
-                    { 'attributes.color': { $regex: query, $options: 'i' } }, // Example for specific attribute
-                    { 'attributes.size': { $regex: query, $options: 'i' } } // Example for specific attribute
-                ]
-            }).populate({
+            const TenantProduct = this.getTenantProductModel();
+            const TenantCategory = this.getTenantCategoryModel();
+            // A simple name search, can be expanded
+            const products = await TenantProduct.find({ name: { $regex: query, $options: 'i' } }).populate({
                 path: 'category',
                 model: TenantCategory
-            });
+            }).exec();
             return products;
         } catch (error) {
-            console.error(`{ProductService -> searchProducts} Error searching products with query '${query}' for tenant DB '${tenantDbName}':`, error);
-            throw new Error("Failed to search products.");
+            console.error(`{ProductService -> searchProducts} Error searching products with query '${query}' for tenant '${this.tenantId}':`, error);
+            throw new Error('Failed to search products.');
         }
     }
 
-    /**
-     * Create a new product for a specific tenant
-     * @param tenantDbName - The name of the tenant's database
-     * @param productData - The data for the new product
-     */
-    async createProduct(tenantDbName: string, productData: Partial<IProduct>): Promise<IProduct> { // Use Partial<IProduct> for request body
+    async createProduct(productData: CreateProductDto): Promise<IProduct> { // Removed tenantDbName, used DTO
         try {
-            const TenantProduct = this.getTenantProductModel(tenantDbName);
-            const product = new TenantProduct(productData); // Create instance using tenant-specific model
+            const TenantProduct = this.getTenantProductModel();
+            // Map categoryId from DTO to category field
+            const productToSave = { ...productData, category: productData.categoryId } as any; // Use 'as any' for temp manipulation
+            delete productToSave.categoryId; // remove categoryId as it's mapped to 'category'
+
+            const product = new TenantProduct(productToSave);
             await product.save();
             return product;
-        } catch (error: any) { // Use 'any' for general error catching if specific type not known
-            console.error(`{ProductService -> createProduct} Failed to create product for tenant DB '${tenantDbName}':`, error);
-            // Propagate specific Mongoose errors like ValidationError or duplicate key
+        } catch (error: any) {
+            console.error(`{ProductService -> createProduct} Failed to create product for tenant '${this.tenantId}':`, error);
             throw error;
         }
     }
 
-    /**
-     * Update a product by SKU for a specific tenant
-     * @param tenantDbName - The name of the tenant's database
-     * @param sku - The SKU of the product to update
-     * @param productData - The data to update the product with
-     */
-    async updateProduct(tenantDbName: string, sku: string, productData: Partial<IProduct>): Promise<IProduct | null> {
+    async updateProduct(sku: string, productData: UpdateProductDto): Promise<IProduct | null> { // Removed tenantDbName, used DTO
         try {
-            const TenantProduct = this.getTenantProductModel(tenantDbName);
+            const TenantProduct = this.getTenantProductModel();
+            const TenantCategory = this.getTenantCategoryModel(); // Needed for populate if used post-update
+
+            // If categoryId is being updated, map it to 'category'
+            let updatePayload: any = productData;
+            if (productData.categoryId) {
+                updatePayload = { ...productData, category: productData.categoryId };
+                delete updatePayload.categoryId;
+            }
+
             const updatedProduct = await TenantProduct.findOneAndUpdate(
                 { sku },
-                productData,
+                updatePayload,
                 { new: true, runValidators: true }
-            );
+            ).populate({ // Populate after update
+                path: 'category',
+                model: TenantCategory
+            }).exec();
+
             if (!updatedProduct) {
-                // Throw an error if product not found to allow router to catch it
-                throw new Error("Product not found for update.");
+                 // Keep specific error for "not found"
+                throw new Error("Product not found or update failed.");
             }
             return updatedProduct;
         } catch (error: any) {
-            console.error(`{ProductService -> updateProduct} Failed to update product by SKU '${sku}' for tenant DB '${tenantDbName}':`, error);
-            throw error; // Propagate the specific error for better handling in router
+            console.error(`{ProductService -> updateProduct} Failed to update product by SKU '${sku}' for tenant '${this.tenantId}':`, error);
+             // If it's the specific "not found" error, rethrow it, otherwise wrap
+            if (error.message === "Product not found or update failed.") {
+                throw error;
+            }
+            throw new Error('Failed to update product.'); // General error
         }
     }
 
-    /**
-     * Delete a product by SKU for a specific tenant
-     * @param tenantDbName - The name of the tenant's database
-     * @param sku - The SKU of the product to delete
-     */
-    async deleteProduct(tenantDbName: string, sku: string): Promise<IProduct | null> {
+    async deleteProduct(sku: string): Promise<IProduct | null> { // Removed tenantDbName
         try {
-            const TenantProduct = this.getTenantProductModel(tenantDbName);
-            const deletedProduct = await TenantProduct.findOneAndDelete({ sku });
+            const TenantProduct = this.getTenantProductModel();
+            const TenantCategory = this.getTenantCategoryModel(); // For population
+
+            const deletedProduct = await TenantProduct.findOneAndDelete({ sku }).populate({
+                path: 'category',
+                model: TenantCategory
+            }).exec();
+
             if (!deletedProduct) {
-                // Throw an error if product not found for better router handling
-                throw new Error("Product not found for deletion.");
+                throw new Error("Product not found or delete failed.");
             }
             return deletedProduct;
         } catch (error: any) {
-            console.error(`{ProductService -> deleteProduct} Failed to delete product by SKU '${sku}' for tenant DB '${tenantDbName}':`, error);
-            throw error; // Propagate the specific error for better handling in router
+            console.error(`{ProductService -> deleteProduct} Failed to delete product by SKU '${sku}' for tenant '${this.tenantId}':`, error);
+            if (error.message === "Product not found or delete failed.") {
+                throw error;
+            }
+            throw new Error('Failed to delete product.'); // General error
         }
     }
 }
 
-export default new ProductService();
+// Removed default export of new ProductService()
