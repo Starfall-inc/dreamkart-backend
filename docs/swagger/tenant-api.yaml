@@ -1,0 +1,363 @@
+openapi: 3.0.0
+info:
+  title: Dreamkart Tenant API
+  version: v1.0.0
+  description: API for managing tenants (shops) on the Dreamkart platform.
+  contact:
+    name: Dreamkart Support
+    email: support@dreamkart.example.com # Replace with actual contact if available
+
+servers:
+  - url: http://localhost:3000/api/platform # Replace with your actual server URL
+    description: Local development server
+
+components:
+  securitySchemes:
+    platformAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT token for authenticated platform users.
+
+  schemas:
+    TenantSettings:
+      type: object
+      properties:
+        logoUrl:
+          type: string
+          format: url
+          description: URL for the tenant's logo.
+          example: https://example.com/logo.png
+        theme:
+          type: string
+          description: Preferred theme for the tenant's shop.
+          example: modern
+
+    Tenant:
+      type: object
+      properties:
+        _id:
+          type: string
+          format: ObjectId
+          description: Unique identifier for the tenant.
+          example: 60d5f1b3e773f2a3c4b8f8b1
+        name:
+          type: string
+          description: Name of the tenant/shop.
+          example: My Awesome Shop
+        slug:
+          type: string
+          description: URL-friendly slug for the tenant.
+          example: my-awesome-shop
+        ownerId:
+          type: string
+          format: ObjectId
+          description: ID of the platform user who owns this tenant.
+        email:
+          type: string
+          format: email
+          description: Contact email for the tenant.
+          example: contact@myawesomeshop.com
+        status:
+          type: string
+          enum: [active, inactive, pending, suspended]
+          description: Current status of the tenant.
+          example: active
+        databaseName:
+          type: string
+          description: Name of the dedicated database for this tenant.
+          example: tenant_my_awesome_shop_abcdef
+        plan:
+          type: string
+          description: Subscription plan of the tenant.
+          example: premium
+        settings:
+          $ref: '#/components/schemas/TenantSettings'
+        createdAt:
+          type: string
+          format: date-time
+          description: Timestamp of tenant creation.
+        updatedAt:
+          type: string
+          format: date-time
+          description: Timestamp of last tenant update.
+
+    NewTenantRequest:
+      type: object
+      required:
+        - name
+        - email
+        - initialTenantUserEmail
+        - initialTenantUserPassword
+        - initialTenantUserName
+      properties:
+        name:
+          type: string
+          description: Name of the new tenant/shop.
+          example: My Awesome Shop
+        email:
+          type: string
+          format: email
+          description: Contact email for the new tenant.
+          example: contact@myawesomeshop.com
+        plan:
+          type: string
+          description: Subscription plan for the tenant. Defaults if not provided.
+          example: premium
+        settings:
+          $ref: '#/components/schemas/TenantSettings'
+        initialTenantUserEmail:
+          type: string
+          format: email
+          description: Email for the initial admin user of the new shop.
+          example: admin@myawesomeshop.com
+        initialTenantUserPassword:
+          type: string
+          format: password
+          description: Password for the initial admin user.
+          example: securePassword123
+        initialTenantUserName:
+          type: string
+          description: Name for the initial admin user.
+          example: Shop Admin
+
+    TenantRegistrationResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: Yay! Your lovely new shop has been registered successfully! 🎉 And your initial admin user is set up!
+        tenant:
+          $ref: '#/components/schemas/Tenant'
+        initialTenantAdminInfo:
+          type: object
+          properties:
+            email:
+              type: string
+              format: email
+              example: admin@myawesomeshop.com
+
+    ErrorResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          description: A human-readable error message.
+        errors: # Optional, for validation errors
+          type: object
+          additionalProperties: true
+        error: # Optional, for detailed error string
+          type: string
+
+paths:
+  /tenants/register:
+    post:
+      summary: Register New Tenant
+      description: Registers a new tenant (shop) on the platform and creates its initial admin user.
+      tags:
+        - Tenants
+      security:
+        - platformAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NewTenantRequest'
+      responses:
+        '201':
+          description: Tenant registered successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TenantRegistrationResponse'
+        '400':
+          description: Bad Request (e.g., validation errors, missing fields).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized (JWT token missing or invalid).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Forbidden (e.g., plan limit reached).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Owner platform user not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Conflict (e.g., tenant name or email already exists).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /tenants/:
+    get:
+      summary: Get All Tenants
+      description: Retrieves a list of all tenants. Recommended for platform admin use.
+      tags:
+        - Tenants
+      # security:
+      #   - platformAuth: [] # Add if/when authentication is enforced on this route
+      responses:
+        '200':
+          description: A list of tenants.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Tenant'
+        '500':
+          description: Internal Server Error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /tenants/{id}:
+    get:
+      summary: Get Tenant by ID
+      description: Retrieves details for a specific tenant by its ID.
+      tags:
+        - Tenants
+      # security:
+      #   - platformAuth: [] # Add if/when authentication/authorization is enforced
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Unique identifier of the tenant.
+          schema:
+            type: string
+            format: ObjectId
+      responses:
+        '200':
+          description: Tenant details.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Tenant'
+        '404':
+          description: Tenant not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      summary: Update Tenant by ID
+      description: Updates details for a specific tenant. Requires authorization.
+      tags:
+        - Tenants
+      security:
+        - platformAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Unique identifier of the tenant to update.
+          schema:
+            type: string
+            format: ObjectId
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object # Define properties that can be updated, e.g., name, email, plan, status, settings
+              properties:
+                name:
+                  type: string
+                email:
+                  type: string
+                  format: email
+                plan:
+                  type: string
+                status:
+                  type: string
+                  enum: [active, inactive, pending, suspended]
+                settings:
+                  $ref: '#/components/schemas/TenantSettings'
+      responses:
+        '200':
+          description: Tenant updated successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                  tenant:
+                    $ref: '#/components/schemas/Tenant'
+        '400':
+          description: Bad Request (validation error).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Tenant not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      summary: Delete Tenant by ID
+      description: Deletes a tenant. Requires strong platform admin authorization.
+      tags:
+        - Tenants
+      security:
+        - platformAuth: [] # Ensure this reflects strong admin auth
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Unique identifier of the tenant to delete.
+          schema:
+            type: string
+            format: ObjectId
+      responses:
+        '204':
+          description: Tenant deleted successfully (No Content).
+        '404':
+          description: Tenant not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
