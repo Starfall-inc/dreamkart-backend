@@ -1,15 +1,19 @@
 import express from 'express';
 import ProductService from '../../services/application/product.service';
-import Tenant from '../../model/platform/tenant.model';
-import tenantService from '../../services/platform/tenant.service';
+import { authenticateTenantUser } from '../../middleware/tenantAuth.middleware'; // Import your tenant auth middleware!
 
 const router = express.Router();
 
+// 💖 Route to get all products for a specific tenant (READ - NO AUTH REQUIRED) 💖
+//@ts-ignore
+router.get('/', async (req, res) => {
+    // tenantDbName still comes from res.locals, set by resolveTenant middleware
+    const tenantDbName: string = res.locals.tenantDbName;
+    if (!tenantDbName) {
+        console.error("{ProductRoutes -> GET /} Missing tenantDbName in res.locals.");
+        return res.status(500).json({ message: 'Sweetie, something went wrong with the shop context. Please try again! 🥺' });
+    }
 
-
-// 💖 Route to get all products for a specific tenant 💖
-router.get('/', async (req, res) => { // Removed /product from path as it's defined in outer router.use('/product', productRoutes)
-    const tenantDbName: string = res.locals.tenantDbName!; // Use '!' as middleware guarantees it's there
     console.log(`Fetching all products for tenant: ${tenantDbName}`);
     try {
         const products = await ProductService.getAllProducts(tenantDbName);
@@ -21,12 +25,17 @@ router.get('/', async (req, res) => { // Removed /product from path as it's defi
     }
 });
 
-// 🔍 Route to get a product by SKU for a specific tenant 🔍
-// @ts-ignore
-router.get('/:sku', async (req, res) => { // Removed /product from path
+// 🔍 Route to get a product by SKU for a specific tenant (READ - NO AUTH REQUIRED) 🔍
+//@ts-ignore
+router.get('/:sku', async (req, res) => {
     const tenantDbName: string = res.locals.tenantDbName;
+    if (!tenantDbName) {
+        console.error("{ProductRoutes -> GET /:sku} Missing tenantDbName in res.locals.");
+        return res.status(500).json({ message: 'Sweetie, something went wrong with the shop context. Please try again! 🥺' });
+    }
+
     try {
-        const product = await ProductService.getProductBySku(tenantDbName, req.params.sku); // Pass tenantDbName
+        const product = await ProductService.getProductBySku(tenantDbName, req.params.sku);
         if (!product) {
             return res.status(404).json({ message: 'Product not found, darling! 🥺' });
         }
@@ -37,11 +46,17 @@ router.get('/:sku', async (req, res) => { // Removed /product from path
     }
 });
 
-// 🔎 Route to search products by query for a specific tenant 🔎
-router.get('/search/:query', async (req, res) => { // Removed /product from path
+// 🔎 Route to search products by query for a specific tenant (READ - NO AUTH REQUIRED) 🔎
+//@ts-ignore
+router.get('/search/:query', async (req, res) => {
     const tenantDbName: string = res.locals.tenantDbName;
+    if (!tenantDbName) {
+        console.error("{ProductRoutes -> GET /search/:query} Missing tenantDbName in res.locals.");
+        return res.status(500).json({ message: 'Sweetie, something went wrong with the shop context. Please try again! 🥺' });
+    }
+
     try {
-        const products = await ProductService.searchProducts(tenantDbName, req.params.query); // Pass tenantDbName
+        const products = await ProductService.searchProducts(tenantDbName, req.params.query);
         res.status(200).json(products);
     } catch (error: any) {
         console.error(`Error searching products with query (${req.params.query}) for tenant ${tenantDbName}:`, error);
@@ -50,13 +65,20 @@ router.get('/search/:query', async (req, res) => { // Removed /product from path
 });
 
 
-// ➕ Route to create a new product for a specific tenant ➕
-// @ts-ignore
-router.post('/', async (req, res) => { // Removed /product from path
-    const tenantDbName: string = res.locals.tenantDbName;
+// --- AUTHENTICATED ROUTES (CUD Operations) ---
+// ✨ The authenticateTenantUser middleware is now applied directly to these routes! ✨
+
+// ➕ Route to create a new product for a specific tenant (CREATE - AUTH REQUIRED) ➕
+//@ts-ignore
+router.post('/', authenticateTenantUser, async (req, res) => {
+    // req.tenantDbName and req.tenantUser are guaranteed here by authenticateTenantUser
+    const tenantDbName: string = req.tenantDbName!;
     try {
-        const newProduct = await ProductService.createProduct(tenantDbName, req.body); // Pass tenantDbName
-        res.status(201).json(newProduct);
+        const newProduct = await ProductService.createProduct(tenantDbName, req.body);
+        res.status(201).json({
+            message: 'Product created successfully! Yay! 🎉',
+            product: newProduct
+        });
     } catch (error: any) {
         console.error(`Error creating product for tenant ${tenantDbName}:`, error);
         if (error.name === 'ValidationError') {
@@ -69,13 +91,19 @@ router.post('/', async (req, res) => { // Removed /product from path
     }
 });
 
-// ✏️ Route to update a product by SKU for a specific tenant ✏️
-// @ts-ignore
-router.put('/:sku', async (req, res) => { // Removed /product from path
-    const tenantDbName: string = res.locals.tenantDbName;
+// ✏️ Route to update a product by SKU for a specific tenant (UPDATE - AUTH REQUIRED) ✏️
+//@ts-ignore
+router.put('/:sku', authenticateTenantUser, async (req, res) => {
+    const tenantDbName: string = req.tenantDbName!;
     try {
-        const updatedProduct = await ProductService.updateProduct(tenantDbName, req.params.sku, req.body); // Pass tenantDbName
-        res.status(200).json(updatedProduct);
+        const updatedProduct = await ProductService.updateProduct(tenantDbName, req.params.sku, req.body);
+        if (!updatedProduct) {
+            return res.status(404).json({ message: 'Product not found to update! 🥺' });
+        }
+        res.status(200).json({
+            message: 'Product updated successfully! 😊',
+            product: updatedProduct
+        });
     } catch (error: any) {
         console.error(`Error updating product by SKU (${req.params.sku}) for tenant ${tenantDbName}:`, error);
         if (error.message.includes('Product not found')) {
@@ -88,19 +116,19 @@ router.put('/:sku', async (req, res) => { // Removed /product from path
     }
 });
 
-// 🗑️ Route to delete a product by SKU for a specific tenant 🗑️
-// @ts-ignore
-router.delete('/:sku', async (req, res) => { // Removed /product from path
-    const tenantDbName: string = res.locals.tenantDbName;
+// 🗑️ Route to delete a product by SKU for a specific tenant (DELETE - AUTH REQUIRED) 🗑️
+//@ts-ignore
+router.delete('/:sku', authenticateTenantUser, async (req, res) => {
+    const tenantDbName: string = req.tenantDbName!;
     try {
-        const deletedProduct = await ProductService.deleteProduct(tenantDbName, req.params.sku); // Pass tenantDbName
-        if (!deletedProduct) { // This check might be redundant if service throws error, but good for clarity
+        const deletedProduct = await ProductService.deleteProduct(tenantDbName, req.params.sku);
+        if (!deletedProduct) {
             return res.status(404).json({ message: 'Product not found to delete! 🥺' });
         }
-        res.status(204).send();
+        res.status(204).send(); // No content for successful delete
     } catch (error: any) {
         console.error(`Error deleting product by SKU (${req.params.sku}) for tenant ${tenantDbName}:`, error);
-        if (error.message.includes('Product not found')) { // Check for specific error message from service
+        if (error.message.includes('Product not found')) {
             return res.status(404).json({ message: 'Product not found to delete! 🥺' });
         }
         res.status(500).json({ message: 'Failed to delete product', error: error.message });

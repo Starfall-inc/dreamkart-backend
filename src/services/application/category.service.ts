@@ -1,12 +1,13 @@
 import mongoose from "mongoose"; // Don't forget to import mongoose!
 import Category, { ICategory } from "../../model/application/category.model";
+import { getTenantDb } from "../../connection/tenantDb";
 
 class CategoryService {
 
     // Helper method to get the correct Category model for a given tenant
     // This is the core multi-tenancy piece for models! 🔑
     private getTenantCategoryModel(tenantDbName: string) {
-        const tenantDb = mongoose.connection.useDb(tenantDbName, { useCache: true });
+        const tenantDb : mongoose.Connection = getTenantDb(tenantDbName)
         // Return the Mongoose Model specific to this tenant's database
         console.log(`{CategoryService -> getTenantCategoryModel} Using tenant DB: ${tenantDbName}`);
         return tenantDb.model<ICategory>('Category', Category.schema);
@@ -77,10 +78,7 @@ class CategoryService {
         }
     }
 
-    /**
-     * Get all categories for a specific tenant (duplicate of getCategories, keeping for consistency with original)
-     * @param tenantDbName - The name of the tenant's database
-     */
+    // This was a duplicate of getCategories, keeping it for now but you might want to remove it later if not needed!
     async getAllCategories(tenantDbName: string): Promise<ICategory[]> { // Added tenantDbName parameter
         try {
             const TenantCategory = this.getTenantCategoryModel(tenantDbName); // Use tenant-specific model
@@ -89,6 +87,54 @@ class CategoryService {
         } catch (error) {
             console.error(`{CategoryService -> getAllCategories} Failed to retrieve all categories for tenant DB '${tenantDbName}':`, error);
             throw new Error("{func: getAllCategories} -> Failed to retrieve all categories.");
+        }
+    }
+
+    /**
+     * Update an existing category for a specific tenant by slug.
+     * @param tenantDbName - The name of the tenant's database.
+     * @param slug - The slug of the category to update.
+     * @param updateData - The data to update the category with.
+     */
+    async updateCategory(tenantDbName: string, slug: string, updateData: Partial<ICategory>): Promise<ICategory | null> {
+        try {
+            const TenantCategory = this.getTenantCategoryModel(tenantDbName);
+            // Use findOneAndUpdate for atomic update and to return the updated document
+            const updatedCategory = await TenantCategory.findOneAndUpdate(
+                { slug },
+                { $set: updateData }, // $set ensures only specified fields are updated
+                { new: true, runValidators: true } // new: true returns the updated doc; runValidators: true validates updates
+            );
+            if (updatedCategory) {
+                console.log(`{CategoryService -> updateCategory} Successfully updated category '${slug}' for tenant DB '${tenantDbName}'`);
+            } else {
+                console.warn(`{CategoryService -> updateCategory} Category with slug '${slug}' not found for update in tenant DB '${tenantDbName}'`);
+            }
+            return updatedCategory;
+        } catch (error: any) {
+            console.error(`{CategoryService -> updateCategory} Failed to update category '${slug}' for tenant DB '${tenantDbName}':`, error);
+            throw error; // Propagate the specific error for better handling in router
+        }
+    }
+
+    /**
+     * Delete a category for a specific tenant by slug.
+     * @param tenantDbName - The name of the tenant's database.
+     * @param slug - The slug of the category to delete.
+     */
+    async deleteCategory(tenantDbName: string, slug: string): Promise<ICategory | null> {
+        try {
+            const TenantCategory = this.getTenantCategoryModel(tenantDbName);
+            const deletedCategory = await TenantCategory.findOneAndDelete({ slug });
+            if (deletedCategory) {
+                console.log(`{CategoryService -> deleteCategory} Successfully deleted category '${slug}' from tenant DB '${tenantDbName}'`);
+            } else {
+                console.warn(`{CategoryService -> deleteCategory} Category with slug '${slug}' not found for deletion in tenant DB '${tenantDbName}'`);
+            }
+            return deletedCategory;
+        } catch (error: any) {
+            console.error(`{CategoryService -> deleteCategory} Failed to delete category '${slug}' for tenant DB '${tenantDbName}':`, error);
+            throw error; // Propagate the specific error
         }
     }
 }

@@ -1,6 +1,7 @@
 import mongoose from "mongoose"; // Important for multi-tenancy!
 import Product, { IProduct } from "../../model/application/product.model"; // Your base Product model
 import Category, { ICategory } from "../../model/application/category.model"; // Your base Category model
+import { getTenantDb } from "../../connection/tenantDb"; // Function to get tenant-specific DB connection
 
 class ProductService {
 
@@ -8,7 +9,7 @@ class ProductService {
     // This is the core multi-tenancy piece! 🔑
     private getTenantProductModel(tenantDbName: string) {
         // Use the existing mongoose connection (to your platform DB) to switch to the tenant's DB
-        const tenantDb = mongoose.connection.useDb(tenantDbName, { useCache: true });
+        const tenantDb : mongoose.Connection = getTenantDb(tenantDbName)
         // Return the Mongoose Model specific to this tenant's database
         // We ensure the schema is applied to this specific database connection
         // Mongoose automatically ensures the model is not re-registered if it already exists for this connection.

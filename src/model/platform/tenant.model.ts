@@ -95,5 +95,5 @@ TenantSchema.pre('save', function(next) {
 
 
 // This is the magical line, darling! ✨
-const Tenant = model<ITenant>('Tenant', TenantSchema);
+export const Tenant = model<ITenant>('Tenant', TenantSchema);
 export default Tenant;

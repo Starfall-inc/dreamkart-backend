@@ -1,18 +1,21 @@
+// src/routes/application/category.routes.ts
+
 import express from 'express';
 import CategoryService from '../../services/application/category.service';
 import ProductService from '../../services/application/product.service';
+import { authenticateTenantUser } from '../../middleware/tenantAuth.middleware'; // Import our lovely tenant auth middleware!
+
 const router = express.Router();
 
-// 🔑 Multi-tenancy middleware for all category routes! 🔑
-// This is essential to extract the tenant ID and make it available.
-
+// --- Unauthenticated Routes (READ Operations) ---
 
 // 💖 Route to get all categories for a specific tenant 💖
 router.get('/', async (req, res) => {
-    const tenantDbName: string = res.locals.tenantDbName!; // Use '!' as middleware guarantees it's there
+    // res.locals.tenantDbName is guaranteed by the 'tenantResolver' middleware in app.ts
+    const tenantDbName: string = res.locals.tenantDbName;
     console.log(`Fetching all categories for tenant: ${tenantDbName}`);
     try {
-        const categories = await CategoryService.getAllCategories(tenantDbName); // Pass tenantDbName
+        const categories = await CategoryService.getAllCategories(tenantDbName);
         res.status(200).json(categories);
     } catch (error: any) {
         console.error(`Error fetching all categories for tenant ${tenantDbName}:`, error);
@@ -23,9 +26,9 @@ router.get('/', async (req, res) => {
 // 🔍 Route to get a category by Slug for a specific tenant 🔍
 // @ts-ignore
 router.get('/slug/:slug', async (req, res) => {
-    const tenantDbName: string = res.locals.tenantDbName; // Get the tenant DB name
+    const tenantDbName: string = res.locals.tenantDbName;
     try {
-        const category = await CategoryService.getCategoryBySlug(tenantDbName, req.params.slug); // Pass tenantDbName
+        const category = await CategoryService.getCategoryBySlug(tenantDbName, req.params.slug);
         if (!category) {
             return res.status(404).json({ message: 'Category not found by slug, darling! 🥺' });
         }
@@ -37,11 +40,13 @@ router.get('/slug/:slug', async (req, res) => {
 });
 
 // 🆔 Route to get a category by ID for a specific tenant 🆔
+// Note: Using '/:id' after '/slug/:slug' might cause conflicts for slugs that look like IDs.
+// Consider ordering more specific routes first, or using unique prefixes.
 // @ts-ignore
 router.get('/:id', async (req, res) => {
-    const tenantDbName: string = res.locals.tenantDbName; // Get the tenant DB name
+    const tenantDbName: string = res.locals.tenantDbName;
     try {
-        const category = await CategoryService.getCategoryById(tenantDbName, req.params.id); // Pass tenantDbName
+        const category = await CategoryService.getCategoryById(tenantDbName, req.params.id);
         if (!category) {
             return res.status(404).json({ message: 'Category not found by ID, sweetie! 🥺' });
         }
@@ -52,13 +57,31 @@ router.get('/:id', async (req, res) => {
     }
 });
 
+// 🛍️ Route to get products belonging to a specific category (still needs tenantDbName too!) 🛍️
+// This route should come *after* specific category GETs like /:id or /slug/:slug
+router.get('/:categoryId/products', async (req, res) => {
+    const tenantDbName: string = res.locals.tenantDbName;
+    try {
+        const products = await ProductService.getProductbyCategory(tenantDbName, req.params.categoryId);
+        res.status(200).json(products);
+    } catch (error: any) {
+        console.error(`Error fetching products for category (${req.params.categoryId}) for tenant ${tenantDbName}:`, error);
+        res.status(500).json({ message: 'Failed to fetch products by category', error: error.message });
+    }
+});
+
+
 // ➕ Route to create a new category for a specific tenant ➕
 // @ts-ignore
-router.post('/', async (req, res) => {
-    const tenantDbName: string = res.locals.tenantDbName; // Get the tenant DB name
+router.post('/', authenticateTenantUser, async (req, res) => { // Added authenticateTenantUser!
+    // For authenticated routes, req.tenantDbName is guaranteed by authenticateTenantUser
+    const tenantDbName: string = req.tenantDbName!;
     try {
-        const newCategory = await CategoryService.createCategory(tenantDbName, req.body); // Pass tenantDbName
-        res.status(201).json(newCategory);
+        const newCategory = await CategoryService.createCategory(tenantDbName, req.body);
+        res.status(201).json({
+            message: 'Category created successfully! Yay! 🎉',
+            category: newCategory
+        });
     } catch (error: any) {
         console.error(`Error creating category for tenant ${tenantDbName}:`, error);
         if (error.name === 'ValidationError') {
@@ -71,21 +94,48 @@ router.post('/', async (req, res) => {
     }
 });
 
-// 🛍️ Route to get products belonging to a specific category (still needs tenantDbName too!) 🛍️
-router.get('/:categoryId/products', async (req, res) => {
-    const tenantDbName: string = res.locals.tenantDbName; // Get the tenant DB name
+// ✏️ Route to update a category by slug for a specific tenant ✏️
+// @ts-ignore
+router.put('/:slug', authenticateTenantUser, async (req, res) => { // Added authenticateTenantUser!
+    const tenantDbName: string = req.tenantDbName!;
     try {
-        // ProductService's getProductbyCategory method also needs the tenantDbName!
-        const products = await ProductService.getProductbyCategory(tenantDbName, req.params.categoryId); 
-        res.status(200).json(products);
+        const updatedCategory = await CategoryService.updateCategory(tenantDbName, req.params.slug, req.body);
+        if (!updatedCategory) {
+            return res.status(404).json({ message: 'Category not found to update! 🥺' });
+        }
+        res.status(200).json({
+            message: 'Category updated successfully! 😊',
+            category: updatedCategory
+        });
     } catch (error: any) {
-        console.error(`Error fetching products for category (${req.params.categoryId}) for tenant ${tenantDbName}:`, error);
-        res.status(500).json({ message: 'Failed to fetch products by category', error: error.message });
+        console.error(`Error updating category by slug (${req.params.slug}) for tenant ${tenantDbName}:`, error);
+        if (error.message.includes('Category not found')) {
+            return res.status(404).json({ message: 'Category not found to update! 🥺' });
+        }
+        if (error.name === 'ValidationError') {
+            return res.status(400).json({ message: 'Validation failed during update, darling! Please check your inputs.', errors: error.errors });
+        }
+        res.status(500).json({ message: 'Failed to update category', error: error.message });
     }
 });
 
-
-
-// ... (Optional update and delete routes - remember to add tenantDbName to them too!)
+// 🗑️ Route to delete a category by slug for a specific tenant 🗑️
+// @ts-ignore
+router.delete('/:slug', authenticateTenantUser, async (req, res) => { // Added authenticateTenantUser!
+    const tenantDbName: string = req.tenantDbName!;
+    try {
+        const deletedCategory = await CategoryService.deleteCategory(tenantDbName, req.params.slug);
+        if (!deletedCategory) {
+            return res.status(404).json({ message: 'Category not found to delete! 🥺' });
+        }
+        res.status(204).send(); // No content for successful delete
+    } catch (error: any) {
+        console.error(`Error deleting category by slug (${req.params.slug}) for tenant ${tenantDbName}:`, error);
+        if (error.message.includes('Category not found')) {
+            return res.status(404).json({ message: 'Category not found to delete! 🥺' });
+        }
+        res.status(500).json({ message: 'Failed to delete category', error: error.message });
+    }
+});
 
 export default router;

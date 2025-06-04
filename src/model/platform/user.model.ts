@@ -1,32 +1,48 @@
-import { Document, Schema, model } from "mongoose";
+// src/models/platform/platformUser.model.ts
 
-// --- 1. User Model (Platform Users / Shop Owners / Admins) ---
-// This interface defines the shape of a User document in your platform database.
-export interface IUser extends Document {
+import { Document, Schema, model } from "mongoose";
+import bcrypt from 'bcryptjs';
+
+export interface IPlatformUser extends Document {
     email: string;
-    passwordHash: string; // Storing the hashed password (NEVER plain text!)
-    firstName?: string; // Optional first name
-    lastName?: string; // Optional last name
-    role: 'platform_admin' | 'tenant_owner' | 'api_user' | 'support'; // Defines user permissions
-    status: 'active' | 'pending_email_verification' | 'disabled'; // User account status
-    lastLoginAt?: Date; // Timestamp of the last login
-    createdAt: Date; // Automatically managed by timestamps: true
-    updatedAt: Date; // Automatically managed by timestamps: true
+    passwordHash: string;
+    firstName?: string;
+    lastName?: string;
+    role: 'platform_admin' | 'tenant_owner' | 'api_user' | 'support';
+    status: 'active' | 'pending_email_verification' | 'disabled';
+    lastLoginAt?: Date;
+    createdAt: Date;
+    updatedAt: Date;
+    plan: 'free' | 'basic' | 'premium' | 'enterprise'; // The user's subscription plan on the platform
+    // ✨ Add the method signature directly to the interface here, my dear! ✨
+    comparePassword(candidatePassword: string): Promise<boolean>;
 }
 
-// The Mongoose Schema for the User model
-const UserSchema = new Schema<IUser>({
+// ✨ 2. NEW Interface for the Public API Response Version of the User! ✨
+export interface IPlatformUserResponse {
+    _id: string;
+    email: string;
+    firstName?: string;
+    lastName?: string;
+    role: 'platform_admin' | 'tenant_owner' | 'api_user' | 'support';
+    status: 'active' | 'pending_email_verification' | 'disabled';
+    lastLoginAt?: Date;
+    createdAt: Date;
+    updatedAt: Date;
+}
+
+const PlatformUserSchema = new Schema<IPlatformUser>({
     email: {
         type: String,
         required: true,
         unique: true,
         lowercase: true,
         trim: true,
-        match: /^\S+@\S+\.\S+$/ // Basic email format validation
+        match: /^\S+@\S+\.\S+$/
     },
     passwordHash: {
         type: String,
-        required: true // Will store the bcrypt hashed password
+        required: true
     },
     firstName: {
         type: String,
@@ -40,19 +56,39 @@ const UserSchema = new Schema<IUser>({
         type: String,
         enum: ['platform_admin', 'tenant_owner', 'api_user', 'support'],
         required: true,
-        default: 'tenant_owner' // Default role for new sign-ups
+        default: 'tenant_owner'
     },
     status: {
         type: String,
         enum: ['active', 'pending_email_verification', 'disabled'],
-        default: 'pending_email_verification' // New users might need to verify email
+        default: 'pending_email_verification'
     },
     lastLoginAt: {
         type: Date
+    },
+    // ✨ NEW: Add the plan field to the Mongoose Schema! ✨
+    plan: {
+        type: String,
+        enum: ['free', 'basic', 'premium', 'enterprise'],
+        required: true, // This field is now required for a platform user
+        default: 'free' // All new platform users start on the 'free' plan
     }
 }, {
-    timestamps: true // Automatically adds createdAt and updatedAt
+    timestamps: true
 });
 
-// This is the magical line, darling! ✨
-export const User = model<IUser>('User', UserSchema);
+// Pre-save hook (remains the same)
+PlatformUserSchema.pre('save', async function (next) {
+    if (this.isModified('passwordHash')) {
+        const salt = await bcrypt.genSalt(10);
+        this.passwordHash = await bcrypt.hash(this.passwordHash, salt);
+    }
+    next();
+});
+
+// Method to compare entered password with the hashed password! (remains the same)
+PlatformUserSchema.methods.comparePassword = async function (candidatePassword: string): Promise<boolean> {
+    return await bcrypt.compare(candidatePassword, this.passwordHash);
+};
+
+export const PlatformUser = model<IPlatformUser>('PlatformUser', PlatformUserSchema);

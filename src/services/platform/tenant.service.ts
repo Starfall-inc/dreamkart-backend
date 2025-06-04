@@ -5,6 +5,8 @@ import mongoose from "mongoose"; // We need mongoose for database connection man
 // Assuming these paths are correct relative to your TenantService
 import Category, { ICategory } from "../../model/application/category.model";
 import Product, { IProduct } from "../../model/application/product.model";
+import { UserSchema, IUser } from "../../model/application/user.model"; // Assuming you have a User model for tenant users
+import { getTenantDb } from "../../connection/tenantDb"; // Utility to get the tenant-specific database connection
 
 // You would also import other application models like Customer, Order, Cart if you have them
 // import Customer, { ICustomer } from "../../model/application/customer.model";
@@ -47,55 +49,61 @@ class TenantService {
     }
 
     /**
-     * Create a new tenant and their dedicated MongoDB database.
+     * Create a new tenant and their dedicated MongoDB database,
+     * and also create the initial owner user for that tenant.
      * This is where the multi-tenant magic happens! ✨
      * @param tenantData - Data for the new tenant (name, ownerId, email, plan, settings)
+     * @param initialTenantUser - Data for the first user to be created in the tenant's database (email, password, name).
+     * This user will be assigned the 'owner' role for the tenant.
      */
-    async createTenant(tenantData: {
-        name: string;
-        ownerId: mongoose.Schema.Types.ObjectId;
-        email: string;
-        plan?: 'free' | 'basic' | 'premium' | 'enterprise';
-        settings?: Record<string, any>;
-    }): Promise<ITenant> {
+    public async createTenant(
+        tenantData: {
+            name: string;
+            ownerId: mongoose.Types.ObjectId; // This is the PlatformUser's ID
+            email: string; // Tenant's contact email
+            plan?: 'free' | 'basic' | 'premium' | 'enterprise';
+            settings?: Record<string, any>;
+        },
+        initialTenantUser: {
+            email: string;
+            password: string;
+            name: string;
+        }
+    ): Promise<ITenant> {
         let newTenant: ITenant | null = null;
         try {
             // 1. Create and save the tenant record in the platform database
-            // The pre-save hook in tenant.model.ts will generate 'slug' and 'databaseName'
             newTenant = new Tenant(tenantData);
             await newTenant.save();
+            console.log(`{TenantService -> createTenant} Tenant record '${newTenant.name}' saved in platform DB.`);
 
             // 2. Programmatically create the dedicated database for the new tenant
-            // mongoose.connection is the main connection to your MongoDB instance (e.g., 'yourplatform_db')
-            // useDb will get a reference to the specific tenant's database, creating it if it doesn't exist.
-            const tenantDb = mongoose.connection.useDb(newTenant.databaseName, { useCache: true }); // useCache can improve performance
+            const tenantDb = getTenantDb(newTenant.databaseName); // Using our centralized utility!
 
             // 3. Create initial collections based on your application models in the new tenant database
-            // Using `ensureIndexes()` will ensure the collection is created and indexes are applied!
-            // This is more robust than just `createCollection`.
-
             // For Category Model:
             const TenantCategoryModel = tenantDb.model<ICategory>('Category', Category.schema);
-            await TenantCategoryModel.createCollection(); // Ensures the collection exists
-            await TenantCategoryModel.createIndexes(); // Applies all indexes defined in CategorySchema
+            await TenantCategoryModel.createCollection();
+            await TenantCategoryModel.createIndexes();
 
             // For Product Model:
             const TenantProductModel = tenantDb.model<IProduct>('Product', Product.schema);
-            await TenantProductModel.createCollection(); // Ensures the collection exists
-            await TenantProductModel.createIndexes(); // Applies all indexes defined in ProductSchema
-            
-            // You would repeat this for other tenant-specific models like Customer, Order, Cart
-            // const TenantCustomerModel = tenantDb.model<ICustomer>('Customer', Customer.schema);
-            // await TenantCustomerModel.createCollection();
-            // await TenantCustomerModel.createIndexes();
+            await TenantProductModel.createCollection();
+            await TenantProductModel.createIndexes();
 
-            // const TenantOrderModel = tenantDb.model<IOrder>('Order', Order.schema);
-            // await TenantOrderModel.createCollection();
-            // await TenantOrderModel.createIndexes();
+            // ✨ 4. Create the initial owner user for this new tenant's database! ✨
+            // We need to get the User model for this specific tenant's database
+            const TenantUserModel = tenantDb.model<IUser>('User', UserSchema);
 
-            // const TenantCartModel = tenantDb.model<ICart>('Cart', Cart.schema);
-            // await TenantCartModel.createCollection();
-            // await TenantCartModel.createIndexes();
+            const initialUser = new TenantUserModel({
+                email: initialTenantUser.email,
+                password: initialTenantUser.password, // Password will be hashed by UserSchema's pre-save hook!
+                name: initialTenantUser.name,
+                role: 'owner', // The first user is the owner of this tenant
+                isActive: true
+            });
+            await initialUser.save();
+            console.log(`{TenantService -> createTenant} Initial owner user '${initialUser.email}' created for tenant '${newTenant.name}' in its dedicated DB.`);
 
 
             console.log(`{TenantService -> createTenant} Successfully created database '${newTenant.databaseName}' and initialized collections for tenant '${newTenant.name}'.`);
@@ -103,13 +111,12 @@ class TenantService {
             return newTenant;
 
         } catch (error: any) {
-            console.error(`{TenantService -> createTenant} Failed to create tenant '${tenantData.name}' or its database:`, error);
+            console.error(`{TenantService -> createTenant} Failed to create tenant '${tenantData.name}' or its database/initial user:`, error);
 
-            // IMPORTANT: If database creation or collection initialization fails, rollback the tenant record creation
+            // IMPORTANT: If database creation or collection/user initialization fails, rollback the tenant record creation
             if (newTenant && newTenant._id) {
                 try {
-                    // Attempt to drop the partially created database as well
-                    const tenantDbToDrop = mongoose.connection.useDb(newTenant.databaseName);
+                    const tenantDbToDrop = getTenantDb(newTenant.databaseName); // Use our utility for dropping
                     await tenantDbToDrop.dropDatabase();
                     console.warn(`{TenantService -> createTenant} Partially created database '${newTenant.databaseName}' dropped during rollback.`);
                 } catch (dropError) {
@@ -117,7 +124,7 @@ class TenantService {
                 }
                 try {
                     await Tenant.findByIdAndDelete(newTenant._id);
-                    console.warn(`{TenantService -> createTenant} Rolled back tenant record for '${newTenant.name}' due to database creation failure.`);
+                    console.warn(`{TenantService -> createTenant} Rolled back tenant record for '${newTenant.name}' due to database/user creation failure.`);
                 } catch (rollbackError) {
                     console.error(`{TenantService -> createTenant} ERROR during tenant record rollback for '${newTenant.name}':`, rollbackError);
                 }
