@@ -27,7 +27,7 @@ const connectDB = async (): Promise<Connection> => {
   }
 
   try {
-    const internalDbURI = `${BASE_MONGO_URI}dreamkart`; // Our special internal database! 💖
+    const internalDbURI = `${BASE_MONGO_URI}`; // Our special internal database! 💖
     console.log(`Attempting to connect to internal database: ${internalDbURI}...`);
 
     // Use mongoose.connect for the primary internal database
