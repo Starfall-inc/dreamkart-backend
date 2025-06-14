@@ -69,6 +69,30 @@ This command uses `ts-node-dev` to automatically transpile TypeScript and restar
 
 You should see a console message indicating that the server is listening on the configured port.
 
+## Running Tests
+
+This project uses Jest for running unit and integration tests. The following npm scripts are available for testing:
+
+-   **Run all tests once:**
+    ```bash
+    npm test
+    ```
+    This command executes all tests found in the `tests` directory.
+
+-   **Run tests in watch mode:**
+    ```bash
+    npm run test:watch
+    ```
+    This is useful during development, as it re-runs tests automatically when files change.
+
+-   **Run tests with coverage report:**
+    ```bash
+    npm run test:cov
+    ```
+    This command runs all tests and generates a coverage report, showing how much of your code is covered by tests. The report can usually be found in a `coverage/` directory.
+
+Make sure you have installed all development dependencies (`npm install`) before running the tests.
+
 ## API Structure
 
 The Dreamkart Backend exposes two main types of API endpoints:

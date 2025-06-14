@@ -211,11 +211,11 @@ paths:
   /tenants/:
     get:
       summary: Get All Tenants
-      description: Retrieves a list of all tenants. Recommended for platform admin use.
+      description: Retrieves a list of all tenants. Requires platform admin authentication.
       tags:
         - Tenants
-      # security:
-      #   - platformAuth: [] # Add if/when authentication is enforced on this route
+      security:
+        - platformAuth: []
       responses:
         '200':
           description: A list of tenants.
@@ -235,11 +235,11 @@ paths:
   /tenants/{id}:
     get:
       summary: Get Tenant by ID
-      description: Retrieves details for a specific tenant by its ID.
+      description: Retrieves details for a specific tenant by its ID. Requires platform user authentication (e.g., admin or owner).
       tags:
         - Tenants
-      # security:
-      #   - platformAuth: [] # Add if/when authentication/authorization is enforced
+      security:
+        - platformAuth: []
       parameters:
         - name: id
           in: path
