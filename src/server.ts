@@ -7,9 +7,10 @@ import productRoutes from './routes/application/product.routes'; // Your lovely 
 import categoryRoutes from './routes/application/category.routes'; // Your fabulous category routes
 import platformAuthRoutes from './routes/platform/auth.platform.routes'; // Our platform auth routes
 import tenantRoutes from './routes/platform/tenant.routes'; // Your glamorous platform tenant routes
-
-// ✨ NEW: Import your tenant-specific authentication routes! ✨
+import customerAuthRoute from './routes/application/customer/auth.routes'
 import tenantAuthRoutes from './routes/application/auth.routes';
+import cartRoutes from './routes/application/cart.routes';
+
 
 import cors from 'cors';
 import { tenantResolver } from './middleware/tenant-resolver.middleware'; // Your tenant resolver middleware
@@ -18,10 +19,10 @@ const app = express(); // Initialize your Express application
 
 // --- Middleware ---
 app.use(express.json()); // Essential for handling JSON bodies
-app.use(cors({
-    methods: ['GET', 'POST', 'PUT', 'DELETE'], // Specify allowed HTTP methods
-    credentials: true, // Allow credentials to be sent with requests
-}));
+// app.use(cors({
+//     methods: ['GET', 'POST', 'PUT', 'DELETE'], // Specify allowed HTTP methods
+//     credentials: true, // Allow credentials to be sent with requests
+// }));
 
 // --- Database Connection ---
 connectDB(); // Connect to MongoDB when the server starts
@@ -44,6 +45,12 @@ app.use('/api/tenant', tenantResolver);
 app.use('/api/tenant/products', productRoutes); // Access via /api/tenant/products
 app.use('/api/tenant/categories', categoryRoutes); // Access via /api/tenant/categories
 app.use('/api/tenant/auth', tenantAuthRoutes);   // Access via /api/tenant/auth/login
+
+// customer based routes
+// @ts-ignore
+app.use('/api/customer/auth', tenantResolver, customerAuthRoute)
+// @ts-ignore
+app.use('/api/customer/cart', tenantResolver, cartRoutes);
 
 // --- Basic Root Route ---
 app.get('/', (req, res) => {
