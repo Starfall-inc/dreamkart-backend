@@ -108,7 +108,7 @@ All endpoints are prefixed with `/api/platform/tenants`.
 -   **HTTP Method:** `GET`
 -   **Path:** `/`
 -   **Description:** Retrieves a list of all tenants on the platform.
--   **Authentication:** Recommended. Typically restricted to platform administrators. (The provided code snippet does not show explicit auth for this endpoint, but it's a common practice).
+-   **Authentication:** Required. Authenticated platform user (e.g., with `platform_admin` role). The JWT token of the platform user must be sent in the `Authorization` header (e.g., `Bearer <your_token>`).
 
 -   **Request Parameters:** None
 
@@ -153,7 +153,7 @@ All endpoints are prefixed with `/api/platform/tenants`.
 -   **HTTP Method:** `GET`
 -   **Path:** `/:id`
 -   **Description:** Retrieves details for a specific tenant using its unique ID.
--   **Authentication:** Recommended. Platform administrators or the owner of the tenant. (Code snippet does not show explicit auth).
+-   **Authentication:** Required. Authenticated platform user (e.g., platform admin or the owner of the tenant). The JWT token of the platform user must be sent in the `Authorization` header (e.g., `Bearer <your_token>`).
 
 -   **Path Parameters:**
     -   `id` (string, required): The unique identifier of the tenant.
