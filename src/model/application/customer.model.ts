@@ -30,7 +30,7 @@ export interface ICustomer extends Document {
     country: string;
     isDefault: boolean;
   }[];
-  orderHistory: Schema.Types.ObjectId[]; // References to tenant-specific Order documents
+  orderHistory: mongoose.Types.ObjectId[]; // Array of Order IDs
   wishlist: Schema.Types.ObjectId[];     // References to tenant-specific Product documents
   // ✨ ADDED: The embedded cart ✨
   cart: ICartItem[];
@@ -75,7 +75,10 @@ const CustomerSchema = new Schema<ICustomer>({
     country: { type: String, required: true },
     isDefault: { type: Boolean, default: false }
   }],
-  orderHistory: [{ type: Schema.Types.ObjectId, ref: 'Order' }], // Assuming an 'Order' model
+  orderHistory: [{ // Array of ObjectIds
+      type: mongoose.Types.ObjectId,
+      ref: 'Order' // Reference to the Order model
+  }],
   wishlist: [{ type: Schema.Types.ObjectId, ref: 'Product' }], // Assuming a 'Product' model
   // ✨ ADDED: The cart array using the CartItemSchema ✨
   cart: [CartItemSchema],

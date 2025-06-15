@@ -1,24 +1,24 @@
+// src/model/application/product.model.ts
+
 import { Document, Schema, model } from "mongoose";
 import { ICategory } from "./category.model"; // Importing the ICategory interface
 
 interface IProduct extends Document{
-    // ✨ You already have 'sku' defined here! ✨
     sku: string;
     name: string;
     price: number;
+    stock: number; // The quantity of this product available
     image: string[];
-    category: Schema.Types.ObjectId | ICategory; // This is correct!
+    category: Schema.Types.ObjectId | ICategory;
     description: string;
-    attributes?: Record<string, any>; // Optional attributes field
-
+    attributes?: Record<string, any>;
 }
 
 const ProductSchema = new Schema<IProduct>({
-    // ✨ And 'sku' is defined as a separate field here, with unique: true! ✨
     sku: {
         type: String,
         required: true,
-        unique: true, // This ensures SKUs are unique across products
+        unique: true,
     },
     name: {
         type: String,
@@ -29,13 +29,20 @@ const ProductSchema = new Schema<IProduct>({
         required: true,
         min: 0,
     },
+    // ✨ ADDED STOCK FIELD IN SCHEMA ✨
+    stock: {
+        type: Number,
+        required: true,
+        min: 0, // Stock cannot be negative
+        default: 0 // Default to 0 if not provided
+    },
     image: {
         type: [String],
         default: [],
     },
     category: {
         type: Schema.Types.ObjectId,
-        ref: 'Category', // This beautiful reference is perfect!
+        ref: 'Category',
         required: true,
     },
     description: {
@@ -43,17 +50,15 @@ const ProductSchema = new Schema<IProduct>({
         required: true,
     },
     attributes: {
-        type: Schema.Types.Mixed, // This allows for flexible attributes
+        type: Schema.Types.Mixed,
         default: {}
     }
 }, {
-    timestamps: true // This is also correct!
-    // ✨ IMPORTANT: You correctly removed `_id: false` from schema options.
-    // This means Mongoose WILL generate its own `_id` (ObjectId) by default! ✨
+    timestamps: true
 });
 
 const Product = model<IProduct>('Product', ProductSchema);
 
-export default Product; // This is the more conventional way to export a single main item!
+export default Product;
 export type { IProduct };
-export { ProductSchema }; // Exporting the schema for potential reuse
+export { ProductSchema };

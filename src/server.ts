@@ -10,6 +10,7 @@ import tenantRoutes from './routes/platform/tenant.routes'; // Your glamorous pl
 import customerAuthRoute from './routes/application/customer/auth.routes'
 import tenantAuthRoutes from './routes/application/auth.routes';
 import cartRoutes from './routes/application/cart.routes';
+import orderRoutes from './routes/application/order.routes'; // ✨ NEW: Import your order routes! ✨
 
 
 import cors from 'cors';
@@ -51,6 +52,10 @@ app.use('/api/tenant/auth', tenantAuthRoutes);   // Access via /api/tenant/auth/
 app.use('/api/customer/auth', tenantResolver, customerAuthRoute)
 // @ts-ignore
 app.use('/api/customer/cart', tenantResolver, cartRoutes);
+
+// @ts-ignore
+app.use('/api/customer/orders', tenantResolver, orderRoutes); // ✨ NEW: Mount your order routes! ✨
+
 
 // --- Basic Root Route ---
 app.get('/', (req, res) => {
