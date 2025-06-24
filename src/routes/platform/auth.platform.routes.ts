@@ -101,7 +101,8 @@ router.post('/login', async (req: Request, res: Response) => {
                 firstName: user.firstName,
                 lastName: user.lastName,
                 role: user.role,
-                status: user.status
+                status: user.status,    
+                plan: user.plan
             }
         });
 

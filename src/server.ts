@@ -20,10 +20,11 @@ const app = express(); // Initialize your Express application
 
 // --- Middleware ---
 app.use(express.json()); // Essential for handling JSON bodies
-// app.use(cors({
-//     methods: ['GET', 'POST', 'PUT', 'DELETE'], // Specify allowed HTTP methods
-//     credentials: true, // Allow credentials to be sent with requests
-// }));
+app.use(cors({
+  origin: 'http://192.168.1.72:5173', // your frontend's address
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  credentials: true
+}));
 
 // --- Database Connection ---
 connectDB(); // Connect to MongoDB when the server starts
