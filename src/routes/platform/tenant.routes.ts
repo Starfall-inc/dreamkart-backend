@@ -143,10 +143,11 @@ router.post('/register', authenticate, async (req: Request, res: Response) => {
 });
 
 // ℹ️ Optional: Route to get all tenants (likely for platform admin use only!) ℹ️
-router.get('/', async (req, res) => {
+router.get('/', authenticate, async (req, res) => {
     // Implement authentication/authorization here to ensure only platform admins can access this!
     try {
-        const tenants = await TenantService.getTenants();
+        const platformUserId = req.user!.id;
+        const tenants = await TenantService.getTenantUnderPlatformUser(platformUserId);
         res.status(200).json(tenants);
     } catch (error: any) {
         console.error("{TenantRoutes -> GET /} Error fetching all tenants:", error);

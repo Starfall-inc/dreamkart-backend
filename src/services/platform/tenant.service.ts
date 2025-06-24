@@ -213,6 +213,43 @@ class TenantService {
             throw new Error("Failed to check tenant existence by database name.");
         }
     }
+
+
+    // Overload signatures
+    async getTenantUnderPlatformUser(platformUserId: mongoose.Types.ObjectId): Promise<ITenant[]>;
+    async getTenantUnderPlatformUser(platformUserId: string): Promise<ITenant[]>;
+    async getTenantUnderPlatformUser(platformUserEmail: { email: string }): Promise<ITenant[]>;
+
+    // Implementation
+    async getTenantUnderPlatformUser(param: mongoose.Types.ObjectId | string | { email: string }): Promise<ITenant[]> {
+        try {
+            if (typeof param === "string" || param instanceof mongoose.Types.ObjectId) {
+                // Case 1: ObjectId or string version of userId
+                const ownerObjectId = typeof param === "string" ? new mongoose.Types.ObjectId(param) : param;
+                const tenants = await Tenant.find({ ownerId: ownerObjectId });
+                return tenants;
+
+            } else if (typeof param === "object" && "email" in param) {
+                // Case 2: Using email to look up the user
+                const platformUser = await mongoose.connection
+                    .collection('platformusers') // 👈 adjust if your model name is different
+                    .findOne({ email: param.email });
+
+                if (!platformUser || !platformUser._id) {
+                    throw new Error(`Platform user with email '${param.email}' not found.`);
+                }
+
+                const tenants = await Tenant.find({ ownerId: platformUser._id });
+                return tenants;
+            }
+
+            // Shouldn't reach here
+            throw new Error("Invalid argument passed to getTenantUnderPlatformUser.");
+        } catch (error) {
+            console.error("{TenantService -> getTenantUnderPlatformUser} Error:", error);
+            throw new Error("Failed to retrieve tenants for platform user.");
+        }
+    }
 }
 
 export default new TenantService();
