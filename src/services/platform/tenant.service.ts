@@ -7,6 +7,7 @@ import Category, { ICategory } from "../../model/application/category.model";
 import Product, { IProduct } from "../../model/application/product.model";
 import { UserSchema, IUser } from "../../model/application/user.model"; // Assuming you have a User model for tenant users
 import { getTenantDb } from "../../connection/tenantDb"; // Utility to get the tenant-specific database connection
+import { DuplicateFieldError } from "../../errors/DuplicateFieldError";
 
 // You would also import other application models like Customer, Order, Cart if you have them
 // import Customer, { ICustomer } from "../../model/application/customer.model";
@@ -128,6 +129,10 @@ class TenantService {
                 } catch (rollbackError) {
                     console.error(`{TenantService -> createTenant} ERROR during tenant record rollback for '${newTenant.name}':`, rollbackError);
                 }
+            }
+            if (error.code === 11000) {
+            const field = Object.keys(error.keyPattern || {})[0];
+            throw new DuplicateFieldError(field);
             }
             throw new Error(`Failed to create tenant: ${error.message || 'Unknown error'}`);
         }

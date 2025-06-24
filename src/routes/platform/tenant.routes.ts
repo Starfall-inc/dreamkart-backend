@@ -6,6 +6,7 @@ import { authenticate } from '../../middleware/auth.middleware';
 import { TENANT_CREATION_LIMITS } from '../../config/app.limit';
 import PlatformUserService from '../../services/platform/platformUser.service'; // Import the PlatformUserService
 import { IPlatformUser } from '../../model/platform/user.model'; // Import the PlatformUser interface
+import { DuplicateFieldError } from '../../errors/DuplicateFieldError';
 import mongoose from 'mongoose'; // Import mongoose for ObjectId conversion
 
 
@@ -137,8 +138,14 @@ router.post('/register', authenticate, async (req: Request, res: Response) => {
         if (error.message && typeof error.message === 'string' && error.message.includes('Failed to create tenant')) {
              return res.status(500).json({ message: 'There was a problem setting up your shop. Please try again. 😔' });
         }
-
-        res.status(500).json({ message: 'Something went wrong during tenant registration. Please try again later. 😥', error: error.message });
+        if (error instanceof DuplicateFieldError) {
+            return res.status(409).json({
+            message: `A shop with this ${error.field} already exists. Please choose a unique ${error.field}. 💔`
+            });
+        }
+        else{
+            res.status(500).json({ message: 'Something went wrong during tenant registration. Please try again later. 😥', error: error.message });
+        }
     }
 });
 
