@@ -11,6 +11,8 @@ export interface ITenant extends Document {
     databaseName: string; // The unique name of this tenant's dedicated MongoDB database
     plan: 'free' | 'basic' | 'premium' | 'enterprise'; // Subscription plan
     settings: Record<string, any>; // Flexible object for various tenant-specific settings
+    theme: string;
+    themeSettings: Record<string, string>;
 }
 
 // Mongoose Schema for the Tenant model
@@ -59,7 +61,16 @@ const TenantSchema = new Schema<ITenant>({
     settings: {
         type: Object, // Stores flexible key-value settings for the tenant
         default: {}
-    }
+    },
+    theme: {
+        type: String,
+        default: 'sakurapink'
+    },
+    themeSettings: {
+        type: Map,
+        of: String,
+        default: {}
+    },
 }, {
     timestamps: true // Automatically adds `createdAt` and `updatedAt` fields
 });
