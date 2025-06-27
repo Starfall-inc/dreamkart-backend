@@ -219,6 +219,31 @@ class TenantService {
         }
     }
 
+    /**
+     * check if tenant exists by slug
+     * @param slug - Tenant slug
+     * @return boolean - true if tenant exists, false otherwise
+     * */
+    async tenantExistsBySlug(slug: string): Promise<boolean> {
+        try {
+            const tenant = await Tenant.findOne({ slug });
+            return !!tenant; // Returns true if tenant exists, false otherwise
+        } catch (error) {
+            console.error(`{TenantService -> tenantExistsBySlug} Error checking existence of tenant with slug ${slug}:`, error);
+            throw new Error("Failed to check tenant existence by slug.");
+        }
+    }
+
+    async getTenantBySlug(slug: string): Promise<ITenant | null> {
+        try {
+            const tenant = await Tenant.findOne({ slug });
+            return tenant;
+        } catch (error) {
+            console.error(`{TenantService -> getTenantBySlug} Error retrieving tenant with slug ${slug}:`, error);
+            return null; // Return null if tenant not found
+        }
+    }
+
 
     // Overload signatures
     async getTenantUnderPlatformUser(platformUserId: mongoose.Types.ObjectId): Promise<ITenant[]>;
