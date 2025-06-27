@@ -149,7 +149,398 @@ components:
         error: # Optional, for detailed error string
           type: string
 
+    PlatformUserRegisterRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        password:
+          type: string
+          format: password
+          example: securepassword123
+        firstName:
+          type: string
+          example: John
+        lastName:
+          type: string
+          example: Doe
+        role:
+          type: string
+          enum: [platform_admin, tenant_owner, api_user, support]
+          default: tenant_owner
+
+    PlatformUserResponse:
+      type: object
+      properties:
+        _id:
+          type: string
+          format: ObjectId
+        email:
+          type: string
+          format: email
+        firstName:
+          type: string
+        lastName:
+          type: string
+        role:
+          type: string
+          enum: [platform_admin, tenant_owner, api_user, support]
+        status:
+          type: string
+          enum: [active, pending_email_verification, disabled]
+        lastLoginAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    PlatformUserRegistrationResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        user:
+          $ref: '#/components/schemas/PlatformUserResponse'
+
+    PlatformUserLoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        password:
+          type: string
+          format: password
+          example: securepassword123
+
+    PlatformUserLoginResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        token:
+          type: string
+          description: JWT token for authentication.
+        user:
+          type: object
+          properties:
+            id:
+              type: string
+              format: ObjectId
+            email:
+              type: string
+              format: email
+            firstName:
+              type: string
+            lastName:
+              type: string
+            role:
+              type: string
+            status:
+              type: string
+            plan:
+              type: string
+
+    PlatformUserRegisterRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        password:
+          type: string
+          format: password
+          example: securepassword123
+        firstName:
+          type: string
+          example: John
+        lastName:
+          type: string
+          example: Doe
+        role:
+          type: string
+          enum: [platform_admin, tenant_owner, api_user, support]
+          default: tenant_owner
+
+    PlatformUserResponse:
+      type: object
+      properties:
+        _id:
+          type: string
+          format: ObjectId
+        email:
+          type: string
+          format: email
+        firstName:
+          type: string
+        lastName:
+          type: string
+        role:
+          type: string
+          enum: [platform_admin, tenant_owner, api_user, support]
+        status:
+          type: string
+          enum: [active, pending_email_verification, disabled]
+        lastLoginAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    PlatformUserRegistrationResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        user:
+          $ref: '#/components/schemas/PlatformUserResponse'
+
+    PlatformUserLoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        password:
+          type: string
+          format: password
+          example: securepassword123
+
+    PlatformUserLoginResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        token:
+          type: string
+          description: JWT token for authentication.
+        user:
+          type: object
+          properties:
+            id:
+              type: string
+              format: ObjectId
+            email:
+              type: string
+              format: email
+            firstName:
+              type: string
+            lastName:
+              type: string
+            role:
+              type: string
+            status:
+              type: string
+            plan:
+              type: string
+
+    PlatformUserRegisterRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        password:
+          type: string
+          format: password
+          example: securepassword123
+        firstName:
+          type: string
+          example: John
+        lastName:
+          type: string
+          example: Doe
+        role:
+          type: string
+          enum: [platform_admin, tenant_owner, api_user, support]
+          default: tenant_owner
+
+    PlatformUserResponse:
+      type: object
+      properties:
+        _id:
+          type: string
+          format: ObjectId
+        email:
+          type: string
+          format: email
+        firstName:
+          type: string
+        lastName:
+          type: string
+        role:
+          type: string
+          enum: [platform_admin, tenant_owner, api_user, support]
+        status:
+          type: string
+          enum: [active, pending_email_verification, disabled]
+        lastLoginAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    PlatformUserRegistrationResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        user:
+          $ref: '#/components/schemas/PlatformUserResponse'
+
+    PlatformUserLoginRequest:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          example: user@example.com
+        password:
+          type: string
+          format: password
+          example: securepassword123
+
+    PlatformUserLoginResponse:
+      type: object
+      properties:
+        message:
+          type: string
+        token:
+          type: string
+          description: JWT token for authentication.
+        user:
+          type: object
+          properties:
+            id:
+              type: string
+              format: ObjectId
+            email:
+              type: string
+              format: email
+            firstName:
+              type: string
+            lastName:
+              type: string
+            role:
+              type: string
+            status:
+              type: string
+            plan:
+              type: string
+
 paths:
+  /auth/register:
+    post:
+      summary: Register Platform User
+      description: Registers a new platform user (e.g., a tenant owner).
+      tags:
+        - Platform Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlatformUserRegisterRequest'
+      responses:
+        '201':
+          description: Platform user registered successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformUserRegistrationResponse'
+        '400':
+          description: Bad Request (e.g., missing email or password).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Conflict (e.g., user with that email already exists).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/login:
+    post:
+      summary: Login Platform User
+      description: Logs in a platform user and returns a JWT token.
+      tags:
+        - Platform Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlatformUserLoginRequest'
+      responses:
+        '200':
+          description: Login successful.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PlatformUserLoginResponse'
+        '400':
+          description: Bad Request (e.g., missing email or password).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Unauthorized (invalid credentials).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Internal Server Error.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /tenants/register:
     post:
       summary: Register New Tenant
